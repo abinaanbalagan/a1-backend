@@ -3,8 +3,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const cron = require("node-cron");
-const nodemailer = require("nodemailer");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,10 +26,7 @@ app.use(express.json());
    MongoDB Connection
 ========================= */
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("MongoDB Connected"))
 .catch(err => console.error("MongoDB Connection Error:", err));
 
@@ -40,30 +35,12 @@ mongoose.connect(process.env.MONGO_URI, {
 ========================= */
 
 const bookingSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true
-  },
-  phone: {
-    type: String,
-    required: true
-  },
-  service: {
-    type: String,
-    required: true
-  },
-  date: {
-    type: String,
-    required: true
-  },
-  time: {
-    type: String,
-    required: true
-  },
-  address: {
-    type: String,
-    required: true
-  },
+  name: { type: String, required: true },
+  phone: { type: String, required: true },
+  service: { type: String, required: true },
+  date: { type: String, required: true },
+  time: { type: String, required: true },
+  address: { type: String, required: true },
   createdAt: {
     type: Date,
     default: Date.now
@@ -73,22 +50,11 @@ const bookingSchema = new mongoose.Schema({
 const Booking = mongoose.model("Booking", bookingSchema);
 
 /* =========================
-   Nodemailer Setup
-========================= */
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-/* =========================
    CREATE BOOKING
 ========================= */
 
 app.post("/api/book", async (req, res) => {
+
   try {
 
     const { name, phone, service, date, time, address } = req.body;
@@ -124,6 +90,7 @@ app.post("/api/book", async (req, res) => {
     });
 
   }
+
 });
 
 /* =========================
@@ -131,6 +98,7 @@ app.post("/api/book", async (req, res) => {
 ========================= */
 
 app.get("/api/bookings", async (req, res) => {
+
   try {
 
     const bookings = await Booking
@@ -148,65 +116,8 @@ app.get("/api/bookings", async (req, res) => {
     });
 
   }
+
 });
-
-/* =========================
-   DAILY SUMMARY EMAIL
-========================= */
-
-const sendDailyBookingsEmail = async () => {
-
-  try {
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const bookings = await Booking.find({ date: today });
-
-    if (!bookings.length) {
-      console.log("No bookings today");
-      return;
-    }
-
-    let emailBody = "<h2>Today's Bookings</h2><ul>";
-
-    bookings.forEach(b => {
-      emailBody += `
-        <li>
-          ${b.name} - ${b.service} - ${b.time} - ${b.phone}
-        </li>
-      `;
-    });
-
-    emailBody += "</ul>";
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.CLIENT_EMAIL,
-      subject: `Daily Bookings - ${today}`,
-      html: emailBody
-    });
-
-    console.log("Daily booking summary email sent");
-
-  } catch (error) {
-
-    console.error("Daily Email Error:", error);
-
-  }
-
-};
-
-/* =========================
-   CRON JOB (8 PM IST)
-========================= */
-
-cron.schedule(
-  "0 20 * * *",
-  sendDailyBookingsEmail,
-  {
-    timezone: "Asia/Kolkata"
-  }
-);
 
 /* =========================
    ROOT ROUTE
